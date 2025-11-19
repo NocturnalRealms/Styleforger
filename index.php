@@ -1605,6 +1605,7 @@ if ($is_search) {
                 padding: 16px;
             }
     </style>
+    <link rel="stylesheet" href="vote_system_styles.css">
 </head>
 <body>
     <div class="header">
@@ -2084,6 +2085,21 @@ if ($is_search) {
                             <div id="styleVersion" style="display: inline-block; padding: 8px 16px; border-radius: 8px; font-weight: 600; color: white;"></div>
                         </div>
 
+                        <?php if (!$is_niji): ?>
+                        <div class="info-section" id="voteSection">
+                            <div class="info-label">Like this style?</div>
+                            <div class="vote-system" data-style-id="" style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border-primary);">
+                                <div class="vote-container" style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                                    <button class="vote-heart-btn" onclick="toggleVoteHeart(currentStyleId)" style="position: relative; background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 50%; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px;">
+                                        <i class="fa-regular fa-heart vote-heart-icon" style="font-size: 1.5rem; color: var(--text-secondary); transition: all 0.3s ease; z-index: 2;"></i>
+                                        <div class="vote-sparkles" style="position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 1;"></div>
+                                    </button>
+                                    <div class="vote-count" style="font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); min-height: 20px; line-height: 20px;">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
                         <div class="info-section">
                             <div class="info-label">Color Palette <small style="color: var(--text-tertiary);">(click to find similar)</small></div>
                             <div class="color-palette" id="colorPalette"></div>
@@ -2136,6 +2152,7 @@ if ($is_search) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="vote_system.js"></script>
     <script>
         const modal = new bootstrap.Modal(document.getElementById('styleModal'));
         
@@ -2197,9 +2214,25 @@ if ($is_search) {
                 } else {
                     keywordsSection.style.display = 'none';
                 }
-                
+
+                // Initialize voting system for non-niji styles
+                const isNiji = <?= $is_niji ? 'true' : 'false' ?>;
+                if (!isNiji && styleData.id) {
+                    window.currentStyleId = styleData.id;
+                    const voteSystem = document.querySelector('.vote-system');
+                    if (voteSystem) {
+                        voteSystem.setAttribute('data-style-id', styleData.id);
+                        initializeVoteSystem(styleData.id, styleData.votes || 0);
+                    }
+                }
+
                 modal.show();
             });
+        });
+
+        // Cleanup vote system when modal closes
+        document.getElementById('styleModal').addEventListener('hidden.bs.modal', function () {
+            cleanupVoteSystem();
         });
         
         function copyStyleCode() {

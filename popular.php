@@ -116,8 +116,9 @@ if (!isset($_SESSION['voted_styles'])) {
 <!-- Your existing CSS -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    
+<link rel="stylesheet" href="vote_system_styles.css">
+
+
     <style>
         /* Design System Variables */
         :root {
@@ -1162,17 +1163,41 @@ if (!isset($_SESSION['voted_styles'])) {
             }
         }
         
-        @media (max-width: 480px) { 
-            .grid-container { 
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); 
-            } 
-            
+        @media (max-width: 480px) {
+            .grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
             .version-section-header {
                 flex-direction: column;
                 gap: 12px;
                 align-items: flex-start;
                 padding: 16px;
             }
+        }
+
+        .vote-display {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 2;
+        }
+
+        .vote-display i {
+            color: #ff4757;
+        }
     </style>
 </head>
 <body>
@@ -1337,14 +1362,20 @@ if (!isset($_SESSION['voted_styles'])) {
                             </div>
                         </div>
 
-                        <div class="info-section">
-                            <div class="info-label">Vote for this Style</div>
-                            <button class="vote-button" id="voteButton" onclick="toggleVote()">
-                                <i class="fas fa-heart heart-icon"></i>
-                                <span id="voteText">Vote</span>
-                                <span id="voteCount">(0)</span>
-                            </button>
+                        <?php if (!$is_niji): ?>
+                        <div class="info-section" id="voteSection">
+                            <div class="info-label">Like this style?</div>
+                            <div class="vote-system" data-style-id="" style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--border-primary);">
+                                <div class="vote-container" style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                                    <button class="vote-heart-btn" onclick="toggleVoteHeart(currentStyleId)" style="position: relative; background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 50%; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px;">
+                                        <i class="fa-regular fa-heart vote-heart-icon" style="font-size: 1.5rem; color: var(--text-secondary); transition: all 0.3s ease; z-index: 2;"></i>
+                                        <div class="vote-sparkles" style="position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 1;"></div>
+                                    </button>
+                                    <div class="vote-count" style="font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); min-height: 20px; line-height: 20px;">0</div>
+                                </div>
+                            </div>
                         </div>
+                        <?php endif; ?>
 
                         <div class="info-section">
                             <div class="info-label">Compatible Version</div>
@@ -1367,6 +1398,7 @@ if (!isset($_SESSION['voted_styles'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="vote_system.js"></script>
     <script>
         const modal = new bootstrap.Modal(document.getElementById('styleModal'));
         let currentStyleId = null;
@@ -1414,96 +1446,6 @@ if (!isset($_SESSION['voted_styles'])) {
                     copyIcon.className = originalClass;
                 }, 1000);
             });
-        }
-        
-        // Voting functionality
-        async function toggleVote() {
-            if (!currentStyleId) return;
-            
-            const voteButton = document.getElementById('voteButton');
-            const voteText = document.getElementById('voteText');
-            const voteCount = document.getElementById('voteCount');
-            const isVoted = voteButton.classList.contains('voted');
-            
-            try {
-                voteButton.style.pointerEvents = 'none';
-                
-                const response = await fetch('vote_api.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        style_id: currentStyleId,
-                        action: isVoted ? 'unvote' : 'vote'
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Update button state
-                    if (data.user_has_voted) {
-                        voteButton.classList.add('voted');
-                        voteText.textContent = 'Voted';
-                    } else {
-                        voteButton.classList.remove('voted');
-                        voteText.textContent = 'Vote';
-                    }
-                    
-                    // Update vote count
-                    voteCount.textContent = `(${data.new_vote_count})`;
-                    
-                    // Update gallery tile if visible
-                    updateGalleryTileVoteCount(currentStyleId, data.new_vote_count);
-                } else {
-                    console.error('Vote failed:', data.error);
-                }
-            } catch (error) {
-                console.error('Vote request failed:', error);
-            } finally {
-                voteButton.style.pointerEvents = 'auto';
-            }
-        }
-        
-        // Update vote count in gallery tile
-        function updateGalleryTileVoteCount(styleId, newCount) {
-            const tiles = document.querySelectorAll('.style-tile');
-            tiles.forEach(tile => {
-                const styleData = JSON.parse(tile.dataset.style);
-                if (styleData.id == styleId) {
-                    const voteDisplay = tile.querySelector('.vote-display span');
-                    if (voteDisplay) {
-                        voteDisplay.textContent = newCount;
-                    }
-                }
-            });
-        }
-        
-        // Load vote status for style
-        async function loadVoteStatus(styleId) {
-            try {
-                const response = await fetch(`vote_api.php?style_id=${styleId}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    const voteButton = document.getElementById('voteButton');
-                    const voteText = document.getElementById('voteText');
-                    const voteCount = document.getElementById('voteCount');
-                    
-                    if (data.user_has_voted) {
-                        voteButton.classList.add('voted');
-                        voteText.textContent = 'Voted';
-                    } else {
-                        voteButton.classList.remove('voted');
-                        voteText.textContent = 'Vote';
-                    }
-                    
-                    voteCount.textContent = `(${data.vote_count})`;
-                }
-            } catch (error) {
-                console.error('Failed to load vote status:', error);
-            }
         }
         
         // Handle style tile clicks
@@ -1567,12 +1509,25 @@ if (!isset($_SESSION['voted_styles'])) {
                 } else {
                     keywordsSection.style.display = 'none';
                 }
-                
-                // Load vote status
-                loadVoteStatus(styleData.id);
-                
+
+                // Initialize voting system for non-niji styles
+                const isNiji = <?= $is_niji ? 'true' : 'false' ?>;
+                if (!isNiji && styleData.id) {
+                    window.currentStyleId = styleData.id;
+                    const voteSystem = document.querySelector('.vote-system');
+                    if (voteSystem) {
+                        voteSystem.setAttribute('data-style-id', styleData.id);
+                        initializeVoteSystem(styleData.id, styleData.votes || 0);
+                    }
+                }
+
                 modal.show();
             });
+        });
+
+        // Cleanup vote system when modal closes
+        document.getElementById('styleModal').addEventListener('hidden.bs.modal', function () {
+            cleanupVoteSystem();
         });
         
         // Initialize theme
